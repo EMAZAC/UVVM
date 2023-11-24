@@ -299,8 +299,9 @@ package adaptations_pkg is
   constant C_MINIMUM_CHANNEL_SCOPE_WIDTH  : natural := 10;
   constant C_MINIMUM_VVC_NAME_SCOPE_WIDTH : natural := 10;
 
-  constant C_TOTAL_NUMBER_OF_BITS_IN_DATA_BUFFER : natural := 2048;
-  constant C_NUMBER_OF_DATA_BUFFERS              : natural := 10;
+  constant C_NUMBER_OF_DATA_BUFFERS              : natural := 4;
+  constant C_TOTAL_NUMBER_OF_BITS_IN_DATA_BUFFER : natural := C_NUMBER_OF_DATA_BUFFERS*3*1024*8; --2048;
+  
 
   -- Default message Id panel intended for use in the VVCs
   constant C_VVC_MSG_ID_PANEL_DEFAULT : t_msg_id_panel := (

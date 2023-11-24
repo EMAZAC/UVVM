@@ -21,3 +21,6 @@ bitvis_vip_spec_cov
 bitvis_vip_wishbone
 bitvis_irqc
 bitvis_uart
+cns_vip_adxl357
+cns_vip_asm330
+cns_vip_P90
