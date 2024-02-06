@@ -1,7 +1,6 @@
 --to do
 -- timing error
 -- SPI_TIMING_CHECK
--- UPDATE_REG_MAP
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -36,7 +35,7 @@ entity ASM330_vvc is
         GC_DATA_WIDTH                            : natural          := 8;
         GC_DATA_ARRAY_WIDTH                      : natural          := C_SPI_VVC_DATA_ARRAY_WIDTH;
         GC_INSTANCE_IDX                          : natural          := 1;                        -- Instance index for this SPI_VVCT instance
-        GC_SPI_CONFIG                            : t_spi_bfm_config := C_SPI_BFM_CONFIG_DEFAULT; -- Behavior specification for BFM
+        GC_CONFIG                                : t_asm330_bfm_config := C_ASM330_BFM_CONFIG_DEFAULT; -- Behavior specification for BFM
         GC_CMD_QUEUE_COUNT_MAX                   : natural          := 1000;
         GC_CMD_QUEUE_COUNT_THRESHOLD             : natural          := 950;
         GC_CMD_QUEUE_COUNT_THRESHOLD_SEVERITY    : t_alert_level    := warning;
@@ -45,7 +44,7 @@ entity ASM330_vvc is
         GC_RESULT_QUEUE_COUNT_THRESHOLD_SEVERITY : t_alert_level    := warning
     );
     port(
-        spi_vvc_if : inout t_spi_if := init_spi_if_signals(GC_SPI_CONFIG, false);
+        spi_vvc_if : inout t_spi_if := init_spi_if_signals(GC_CONFIG.SPI_BFM_CONFIG, false);
         int1       : inout std_logic :='0';
         int2       : inout std_logic :='0'
     );
@@ -102,16 +101,19 @@ architecture behave of ASM330_vvc is
     signal s_gyro_internal_drdy          : std_logic;
     signal s_acc_internal_drdy          : std_logic;
     signal s_temp_internal_drdy          : std_logic;
+    signal s_int1_noise    : std_logic;
     signal s_internal_int1 : std_logic;
     signal s_internal_int2 : std_logic;
     signal s_DRDY_ena               : boolean           := false;
     signal s_SPI_ena                : boolean           := false;
+    signal s_IRQ_noise_ena          : boolean           := false;
     signal s_boot_in_progress       : boolean           := true;
     signal s_TEST_mode_ena          : boolean           := false;
     signal s_SPI_SEQUENCE_CHECK_ena  : boolean           := false;
     signal s_CONFIGURATION_CHECK_ena : boolean           := false;
     signal s_SPI_TIMING_CHECK_ena    : boolean           := false;
     shared variable  v_reg_map                : t_ASM330_reg_map := C_ASM330_reg_map;
+    shared variable  v_reg_map_reset          : t_ASM330_reg_map := C_ASM330_reg_map;
     signal s_reg_map_expected                 : t_ASM330_reg_map := C_ASM330_reg_map;
     signal s_spi_cmd_seq_expect               : t_ASM330_spi_cmd_seq(0 to C_VVC_CMD_MAX_SPI_CMD_SEQ_LENGTH-1);
     signal s_reg                    : e_ASM330_RegisterNames;
@@ -139,7 +141,7 @@ begin
     -- Constructor
     -- - Set up the defaults and show constructor if enabled
     --===============================================================================================
-    work.td_vvc_entity_support_pkg.vvc_constructor(C_SCOPE, GC_INSTANCE_IDX, vvc_config, command_queue, result_queue, GC_SPI_CONFIG,
+    work.td_vvc_entity_support_pkg.vvc_constructor(C_SCOPE, GC_INSTANCE_IDX, vvc_config, command_queue, result_queue, GC_CONFIG,
         GC_CMD_QUEUE_COUNT_MAX, GC_CMD_QUEUE_COUNT_THRESHOLD, GC_CMD_QUEUE_COUNT_THRESHOLD_SEVERITY,
         GC_RESULT_QUEUE_COUNT_MAX, GC_RESULT_QUEUE_COUNT_THRESHOLD, GC_RESULT_QUEUE_COUNT_THRESHOLD_SEVERITY);
     --===============================================================================================
@@ -369,6 +371,15 @@ begin
                                 log(ID_BFM, "ASM330 SPI timing CHECK started", C_SCOPE);
                             end if;
 
+                        when IRQ_NOISE =>
+                            if s_IRQ_noise_ena then
+                                tb_error("ASM330 IRQ noise already running. " & format_msg(v_cmd), C_SCOPE);
+                            else
+                                s_IRQ_noise_ena <= true;
+                                wait for 0 ns;
+                                log(ID_BFM, "ASM330 IRQ noise started", C_SCOPE);
+                            end if;
+
                         when OTHERS =>
                             tb_error("ASM330 Enable functionality error, code error " & format_msg(v_cmd), C_SCOPE);
                     end case;
@@ -430,6 +441,17 @@ begin
                                 wait for 0 ns;
                                 log(ID_BFM, "ASM330 SPI timing CHECK disabled", C_SCOPE);
                             end if;
+
+                        when IRQ_NOISE =>
+                            if not s_IRQ_noise_ena then
+                                tb_error("ASM330 IRQ noise already disabled. " & format_msg(v_cmd), C_SCOPE);
+                            else
+                                s_IRQ_noise_ena <= false;
+                                wait for 0 ns;
+                                log(ID_BFM, "ASM330 IRQ noise disabled", C_SCOPE);
+                            end if;
+
+
                         when OTHERS =>
                             tb_error("ASM330 Disable functionality error, code error " & format_msg(v_cmd), C_SCOPE);
                     end case;
@@ -456,6 +478,7 @@ begin
                     -- Set vvc transaction info
                     set_global_vvc_transaction_info(vvc_transaction_info_trigger, vvc_transaction_info, v_cmd, vvc_config);
                     v_reg_map  := v_cmd.reg_map;
+                    v_reg_map_reset  := v_cmd.reg_map;
                     log(ID_BFM, "ASM330 register map updated", C_SCOPE);
                                
 
@@ -468,7 +491,7 @@ begin
                         wait until terminate_current_cmd.is_active = '1' for v_cmd.delay;
                     else
                         -- Delay specified using integer
-                        wait until terminate_current_cmd.is_active = '1' for v_cmd.gen_integer_array(0) * vvc_config.bfm_config.spi_bit_time;
+                        wait until terminate_current_cmd.is_active = '1' for v_cmd.gen_integer_array(0) * vvc_config.bfm_config.SPI_BFM_CONFIG.spi_bit_time;
                     end if;
                 when others =>
                     tb_error("Unsupported local command received for execution: '" & to_string(v_cmd.operation) & "'", C_SCOPE);
@@ -509,7 +532,7 @@ begin
                 wait until s_SPI_ena and not s_boot_in_progress;
             end if;
 
-            ASM330_SPI_mng(spi_vvc_if,true,v_reg_map,s_reg, s_readed_reg, s_wrote_reg,vvc_config.bfm_config);
+            ASM330_SPI_mng(spi_vvc_if,true,v_reg_map,s_reg, s_readed_reg, s_wrote_reg,vvc_config.bfm_config.SPI_BFM_CONFIG);
 
             wait for 0 ns;
         end loop;
@@ -709,6 +732,21 @@ begin
         end loop;
     end process;
 
+    int1_noise_gen : process
+    begin
+        wait for 0 ns; -- wait for clock_ena to be set
+        s_int1_noise <= '0';
+        loop
+            if not s_IRQ_noise_ena then
+                wait until s_IRQ_noise_ena;
+            end if;
+            
+            gen_pulse(s_int1_noise, '1', (1000000000 / vvc_config.bfm_config.IRQ_noise_frequency_Hz)/2 *1 ns, BLOCKING, "Pulsing s_int1_noise");
+            wait for (1000000000 / vvc_config.bfm_config.IRQ_noise_frequency_Hz)/2 *1 ns;          
+
+        end loop;
+    end process;
+
     int_out : process
     begin
         wait for 0 ns; -- wait for clock_ena to be set
@@ -716,12 +754,12 @@ begin
         int2 <= '0';
         loop
             wait until ((s_internal_int1'event) or 
-                        (s_internal_int2'event) );
+                        (s_internal_int2'event)  or s_int1_noise'event);
         
             if (v_reg_map(f_idx2int(REG_CTRL4_C)).value(5)='1') then
-                int1 <= s_internal_int1 or s_internal_int2;
+                int1 <= s_internal_int1 or s_internal_int2 or s_int1_noise;
             else
-                int1 <= s_internal_int1;
+                int1 <= s_internal_int1 or s_int1_noise;
             end if; 
     
             int2 <= s_internal_int2;   
@@ -751,7 +789,7 @@ begin
             if (s_TEST_mode_ena) then
                 wait for (C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL2_G)).value(7 downto 4))) - 
                           C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL2_G)).value(7 downto 4)))*
-                          to_integer(signed(v_reg_map(f_idx2int(REG_INTERNAL_FREQ_FINE)).value))*150/100000 )/C_TEST_MODE_DRDY_SCALE_FACTOR * 1 ns;
+                          to_integer(signed(v_reg_map(f_idx2int(REG_INTERNAL_FREQ_FINE)).value))*150/100000 )/vvc_config.bfm_config.GYRO_TEST_MODE_DRDY_SCALE_FACTOR * 1 ns;
             else
                 wait for (C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL2_G)).value(7 downto 4))) - 
                           C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL2_G)).value(7 downto 4)))*
@@ -766,6 +804,7 @@ begin
 
         end loop;
     end process;
+
 
     ACC_DRDY_generator : process
     begin
@@ -785,7 +824,7 @@ begin
             if (s_TEST_mode_ena) then
                 wait for (C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL1_XL)).value(7 downto 4))) - 
                           C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL1_XL)).value(7 downto 4)))*
-                          to_integer(signed(v_reg_map(f_idx2int(REG_INTERNAL_FREQ_FINE)).value))*150/100000 )/C_TEST_MODE_DRDY_SCALE_FACTOR * 1 ns; 
+                          to_integer(signed(v_reg_map(f_idx2int(REG_INTERNAL_FREQ_FINE)).value))*150/100000 )/vvc_config.bfm_config.ACC_TEST_MODE_DRDY_SCALE_FACTOR * 1 ns; 
             else
                 wait for (C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL1_XL)).value(7 downto 4))) - 
                           C_ORD_TIME_nS(to_integer(v_reg_map(f_idx2int(REG_CTRL1_XL)).value(7 downto 4))) *
@@ -813,7 +852,7 @@ begin
             end if;
 
             if (s_TEST_mode_ena) then
-                wait for C_TEMP_TIME_nS/C_TEST_MODE_TEMP_DRDY_SCALE_FACTOR * 1 ns; 
+                wait for C_TEMP_TIME_nS/vvc_config.bfm_config.TEMP_TEST_MODE_DRDY_SCALE_FACTOR * 1 ns; 
             else
                 wait for C_TEMP_TIME_nS* 1 ns;
             end if;
@@ -1121,7 +1160,7 @@ begin
 
             if (v_reg_map(f_idx2int(REG_CTRL3_C)).value(0)='1') then
                 wait for 50 us;
-                v_reg_map := C_ASM330_reg_map;
+                v_reg_map := v_reg_map_reset;
                 wait for 100 us;
                 v_reg_map(f_idx2int(REG_CTRL3_C)).value(0):='0';
             end if;
@@ -1361,7 +1400,7 @@ begin
                     v_reg_map(f_idx2int(REG_CTRL3_C)).value(6 downto 1)/=C_ASM330_reg_map(f_idx2int(REG_CTRL3_C)).value(6 downto 1) or             
                     v_reg_map(f_idx2int(REG_CTRL5_C)).value/=C_ASM330_reg_map(f_idx2int(REG_CTRL5_C)).value          
                     ) then            
-                    tb_error("ASM330 VCC unsupported function ", C_SCOPE);
+                    tb_error("ASM330 vvc unsupported function ", C_SCOPE);
                 end if;
             end if;
 

@@ -349,17 +349,23 @@ package asm330_bfm_pkg is
     -- Configuration record to be assigned in the test harness.
     type t_asm330_bfm_config is
         record
-        reg_map               : t_asm330_reg_map;
-        SPI_BFM_CONFIG        : t_spi_bfm_config ;
-        SPI_propagation_delay : time;
+        SPI_BFM_CONFIG                   : t_spi_bfm_config;
+        SPI_propagation_delay            : time;
+        GYRO_TEST_MODE_DRDY_SCALE_FACTOR : integer;
+        ACC_TEST_MODE_DRDY_SCALE_FACTOR  : integer;
+        TEMP_TEST_MODE_DRDY_SCALE_FACTOR : integer;
+        IRQ_noise_frequency_Hz           : integer;
     end record;
 
 
     -- Define the default value for the BFM config
     constant C_ASM330_BFM_CONFIG_DEFAULT : t_asm330_bfm_config := (
-            reg_map               => C_asm330_reg_map,
             SPI_BFM_CONFIG        => C_asm330_SPI_BFM_CONFIG,
-            SPI_propagation_delay => C_SPI_propagation_delay
+            SPI_propagation_delay => C_SPI_propagation_delay,
+            GYRO_TEST_MODE_DRDY_SCALE_FACTOR => 4,
+            ACC_TEST_MODE_DRDY_SCALE_FACTOR => 4,
+            TEMP_TEST_MODE_DRDY_SCALE_FACTOR => 50,
+            IRQ_noise_frequency_Hz => 4000000
         );
 
     constant C_ORD_COUNT : t_integer_array(0 to 11) :=(
@@ -376,8 +382,6 @@ package asm330_bfm_pkg is
             10 => 1,
             11 => 1024);
 
-    constant C_TEST_MODE_DRDY_SCALE_FACTOR : integer :=4;
-    constant C_TEST_MODE_TEMP_DRDY_SCALE_FACTOR : integer :=50;
 
     constant C_TEMP_ORD_COUNT : t_integer_array(0 to 3) :=(
             0  => -1,

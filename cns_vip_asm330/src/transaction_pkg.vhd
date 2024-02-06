@@ -60,6 +60,7 @@ package transaction_pkg is
             DRDY_MNG,
             SPI_SEQUENCE_CHECK,
             CONFIGURATION_CHECK,
+            IRQ_NOISE,
             SPI_TIMING_CHECK
             );  
   --==========================================================================================

@@ -48,7 +48,7 @@ package vvc_methods_pkg is
 
   signal asm330_VVCT : t_vvc_target_record := set_vvc_target_defaults(C_VVC_NAME);
   alias THIS_VVCT : t_vvc_target_record is asm330_VVCT;
-  alias t_bfm_config is t_spi_bfm_config;
+  alias t_bfm_config is t_asm330_bfm_config;
 
   constant C_SPI_INTER_BFM_DELAY_DEFAULT : t_inter_bfm_delay := (
     delay_type                         => NO_DELAY,
@@ -64,7 +64,7 @@ package vvc_methods_pkg is
     result_queue_count_max                : natural; -- Maximum number of unfetched results before result_queue is full.
     result_queue_count_threshold_severity : t_alert_level; -- An alert with severity 'result_queue_count_threshold_severity' will be issued if command queue exceeds this count. Used for early warning if result queue is almost full. Will be ignored if set to 0.
     result_queue_count_threshold          : natural; -- Severity of alert to be initiated if exceeding result_queue_count_threshold
-    bfm_config                            : t_spi_bfm_config; -- Configuration for the BFM. See BFM quick reference
+    bfm_config                            : t_asm330_bfm_config; -- Configuration for the BFM. See BFM quick reference
     msg_id_panel                          : t_msg_id_panel; -- VVC dedicated message ID panel
     parent_msg_id_panel                   : t_msg_id_panel; --UVVM: temporary fix for HVVC, remove in v3.0
   end record;
@@ -79,7 +79,7 @@ package vvc_methods_pkg is
     result_queue_count_max                => C_RESULT_QUEUE_COUNT_MAX,
     result_queue_count_threshold_severity => C_RESULT_QUEUE_COUNT_THRESHOLD_SEVERITY,
     result_queue_count_threshold          => C_RESULT_QUEUE_COUNT_THRESHOLD,
-    bfm_config                            => C_SPI_BFM_CONFIG_DEFAULT,
+    bfm_config                            => C_ASM330_BFM_CONFIG_DEFAULT,
     msg_id_panel                          => C_VVC_MSG_ID_PANEL_DEFAULT,
     parent_msg_id_panel                   => C_VVC_MSG_ID_PANEL_DEFAULT
   );
