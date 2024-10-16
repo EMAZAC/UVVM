@@ -1,5 +1,5 @@
 --================================================================================================================================
--- Copyright 2020 Bitvis
+-- Copyright 2024 UVVM
 -- Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 -- You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 and in the provided LICENSE.TXT.
 --
@@ -196,9 +196,9 @@ package axi_bfm_pkg is
   ------------------------------------------
   -- init_axi_if_signals
   ------------------------------------------
-  -- - This function returns an AXI interface with initialized signals.
-  -- - All AXI input signals are initialized to 0
-  -- - All AXI output signals are initialized to Z
+  -- This function returns an AXI interface with initialized signals.
+  -- All BFM output signals are initialized to 0
+  -- All BFM input signals are initialized to Z
   function init_axi_if_signals(
     addr_width : natural;
     data_width : natural;
@@ -315,7 +315,7 @@ package axi_bfm_pkg is
     constant msg            : in string;
     signal   clk            : in std_logic;
     signal   axi_if         : inout t_axi_if;
-    constant alert_level    : in t_alert_level                := error;
+    constant alert_level    : in t_alert_level                := C_AXI_BFM_CONFIG_DEFAULT.general_severity;
     constant scope          : in string                       := C_BFM_SCOPE;
     constant msg_id_panel   : in t_msg_id_panel               := shared_msg_id_panel;
     constant config         : in t_axi_bfm_config             := C_AXI_BFM_CONFIG_DEFAULT
@@ -902,7 +902,7 @@ package body axi_bfm_pkg is
     constant msg            : in string;
     signal   clk            : in std_logic;
     signal   axi_if         : inout t_axi_if;
-    constant alert_level    : in t_alert_level                := error;
+    constant alert_level    : in t_alert_level                := C_AXI_BFM_CONFIG_DEFAULT.general_severity;
     constant scope          : in string                       := C_BFM_SCOPE;
     constant msg_id_panel   : in t_msg_id_panel               := shared_msg_id_panel;
     constant config         : in t_axi_bfm_config             := C_AXI_BFM_CONFIG_DEFAULT
